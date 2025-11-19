@@ -4,6 +4,7 @@
 
 /**
  * @author Manuel Sánchez Salazar
+ * @author Rafael Aznar Estrada
  */
 int main (int argc, char** argv)
 {  // inicializa la ventana de visualización
