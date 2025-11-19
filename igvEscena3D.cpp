@@ -45,38 +45,17 @@ void igvEscena3D::pintar_ejes ()
  * @pre Se asume que el valor del parámetro es correcto
  */
 void igvEscena3D::visualizar ( int escena )
-{  // borra la ventana y el Z-buffer
-   glClear ( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
+{
    //Luces
    GLfloat light0[] = { 10, 8, 9, 1 }; // point light source
    glLightfv ( GL_LIGHT0, GL_POSITION, light0 );
    glEnable ( GL_LIGHT0 );
 
    glPushMatrix (); // guarda la matriz de modelado
-
-   // se pintan los ejes
-   if ( ejes )
-   {  pintar_ejes ();
-   }
-
-   // Escena seleccionada a través del menú (clic botón derecho)
-   if ( escena == EscenaA )
-   {  renderEscenaA ();
-   }
-   else
-   {  if ( escena == EscenaB )
-      {  renderEscenaB ();
-      }
-      else
-      {  if ( escena == EscenaC )
-         {  renderEscenaC ();
-         }
-      }
-   }
-
+   if ( ejes ) {  pintar_ejes (); }
+   if ( escena == EscenaA ) {  renderEscenaA (); }
+   else { if ( escena == EscenaB ) {  renderEscenaB (); } else { if ( escena == EscenaC ) {  renderEscenaC (); } } }
    glPopMatrix (); // restaura la matriz de modelado
-   glutSwapBuffers (); // se utiliza, en vez de glFlush(), para evitar el parpadeo
 }
 
 /**
@@ -87,14 +66,12 @@ void igvEscena3D::renderEscenaA ()
    auto applyFor = [&](int idx){
       if (mode == RST) {
          const Transform& t = objT[idx];
-         // Call order T -> S -> R (effect R -> S -> T)
          glTranslatef(t.tx, t.ty, t.tz);
          glScalef(t.s, t.s, t.s);
          glRotatef(t.rx, 1, 0, 0);
          glRotatef(t.ry, 0, 1, 0);
          glRotatef(t.rz, 0, 0, 1);
-      } else { // SEQ: world-space composition (about origin)
-         // Apply operations in reverse press order to emulate left-multiplication
+      } else {
          for (auto it = objOps[idx].rbegin(); it != objOps[idx].rend(); ++it) {
             const auto& op = *it;
             switch (op.kind) {
@@ -107,39 +84,151 @@ void igvEscena3D::renderEscenaA ()
          }
       }
    };
-   // Objeto 1: Cubo
+
+   // ===========================================================
+   // ROBOT
+   // ===========================================================
    {
-      const GLfloat color_pieza[] = {0,0.25f,0,1.0f};
-      glMaterialfv(GL_FRONT, GL_EMISSION, color_pieza);
       glPushMatrix();
+      glTranslatef(-2.5f, 0.0f, 0.0f); // desplazar a la izquierda
       applyFor(0);
-      glScalef(1.2f, 0.6f, 2.6f);
+
+      const GLfloat c_body[]  = {0.15f, 0.35f, 0.65f, 1.0f};
+      const GLfloat c_joint[] = {0.7f, 0.7f, 0.7f, 1.0f};
+      const GLfloat c_eye[]   = {1.0f, 0.7f, 0.2f, 1.0f};
+
+      // Cuerpo
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_body);
+      glPushMatrix();
+         glScalef(0.9f, 1.2f, 0.5f);
+         glutSolidCube(1.0);
+      glPopMatrix();
+
+      // Cabeza
+      glPushMatrix();
+         glTranslatef(0.0f, 1.0f, 0.0f);
+         glScalef(0.6f, 0.6f, 0.6f);
+         glutSolidCube(1.0);
+      glPopMatrix();
+
+      // Ojos
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_eye);
+      glPushMatrix(); glTranslatef(-0.18f, 1.05f, 0.31f); glutSolidSphere(0.06, 14, 14); glPopMatrix();
+      glPushMatrix(); glTranslatef( 0.18f, 1.05f, 0.31f); glutSolidSphere(0.06, 14, 14); glPopMatrix();
+
+      // Brazos
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_body);
+      glPushMatrix(); glTranslatef(-0.95f, 0.45f, 0.0f); glScalef(0.5f, 0.2f, 0.2f); glutSolidCube(1.0); glPopMatrix();
+      glPushMatrix(); glTranslatef( 0.95f, 0.45f, 0.0f); glScalef(0.5f, 0.2f, 0.2f); glutSolidCube(1.0); glPopMatrix();
+
+      // Caderas y piernas
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_joint);
+      glPushMatrix(); glTranslatef(0.0f, 0.0f, 0.0f); glutSolidSphere(0.12, 16, 16); glPopMatrix();
+
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_body);
+      glPushMatrix(); glTranslatef(-0.25f, -0.75f, 0.0f); glScalef(0.25f, 0.8f, 0.25f); glutSolidCube(1.0); glPopMatrix();
+      glPushMatrix(); glTranslatef( 0.25f, -0.75f, 0.0f); glScalef(0.25f, 0.8f, 0.25f); glutSolidCube(1.0); glPopMatrix();
+
+      glPopMatrix();
+   }
+
+   // ===========================================================
+   // COCHE
+   // ===========================================================
+   {
+      glPushMatrix();
+      glTranslatef(0.0f, -0.1f, 0.0f); // un poco hacia abajo
+      applyFor(1);
+
+      const GLfloat c_chassis[] = {0.7f, 0.05f, 0.05f, 1.0f};
+      const GLfloat c_cabin[]   = {0.25f, 0.25f, 0.35f, 1.0f};
+      const GLfloat c_light[]   = {0.9f, 0.8f, 0.2f, 1.0f};
+
+      // Chasis
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_chassis);
+      glPushMatrix();
+         glScalef(1.8f, 0.3f, 1.0f);
+         glutSolidCube(1.0);
+      glPopMatrix();
+
+      // Cabina
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_cabin);
+      glPushMatrix();
+         glTranslatef(0.1f, 0.25f, 0.0f);
+         glScalef(0.9f, 0.4f, 0.9f);
+         glutSolidCube(1.0);
+      glPopMatrix();
+
+      // Faros
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_light);
+      glPushMatrix(); glTranslatef( 0.95f, 0.05f,  0.3f); glutSolidSphere(0.06, 14, 14); glPopMatrix();
+      glPushMatrix(); glTranslatef( 0.95f, 0.05f, -0.3f); glutSolidSphere(0.06, 14, 14); glPopMatrix();
+      glPopMatrix();
+   }
+
+   // ===========================================================
+   // CASA
+   // ===========================================================
+   {
+      glPushMatrix();
+      glTranslatef(2.5f, 0.0f, 0.0f); // desplazar a la derecha
+      applyFor(2);
+
+      const GLfloat c_wall[]   = {0.45f, 0.25f, 0.15f, 1.0f};  // paredes marrón oscuro
+      const GLfloat c_roof[]   = {0.35f, 0.05f, 0.05f, 1.0f};  // techo granate
+      const GLfloat c_door[]   = {0.25f, 0.15f, 0.05f, 1.0f};  // puerta madera oscura
+      const GLfloat c_window[] = {0.05f, 0.25f, 0.55f, 1.0f};  // ventanas azul profundo
+      const GLfloat c_chim[]   = {0.2f, 0.2f, 0.2f, 1.0f};     // chimenea gris oscuro
+
+      // Base de la casa
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_wall);
+      glPushMatrix();
+      glScalef(1.6f, 1.0f, 1.2f);
       glutSolidCube(1.0);
       glPopMatrix();
-   }
 
-   // Objeto 2: Esfera
-   {
-      const GLfloat color_pieza2[] = {0.25f,0,0.25f,1.0f};
-      glMaterialfv(GL_FRONT, GL_EMISSION, color_pieza2);
+      // Techo
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_roof);
       glPushMatrix();
-      applyFor(1);
-      glScaled(1.2f, 1.2f, 1.2f);
-      glutSolidSphere(0.5, 20, 20);
+      glTranslatef(0.0f, 0.75f, 0.0f);
+      glRotatef(-90.0f, 1, 0, 0);
+      glutSolidCone(0.95f, 0.9f, 24, 16);
       glPopMatrix();
-   }
 
-   // Objeto 3: Cono
-   {
-      const GLfloat color_pieza3[] = {0.25f,0.25f,0,1.0f};
-      glMaterialfv(GL_FRONT, GL_EMISSION, color_pieza3);
+      // Chimenea
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_chim);
       glPushMatrix();
-      applyFor(2);
-      glRotatef(-90, 1, 0, 0);
-      glutSolidCone(0.5, 1.0, 20, 20);
+      glTranslatef(-0.35f, 1.0f, 0.1f);
+      glScalef(0.25f, 0.45f, 0.25f);
+      glutSolidCube(1.0);
+      glPopMatrix();
+
+      // Puerta
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_door);
+      glPushMatrix();
+      glTranslatef(0.0f, -0.2f, 0.62f);
+      glScalef(0.35f, 0.45f, 0.08f);
+      glutSolidCube(1.0);
+      glPopMatrix();
+
+      // Ventanas
+      glMaterialfv(GL_FRONT, GL_EMISSION, c_window);
+      glPushMatrix();
+      glTranslatef(-0.45f, 0.15f, 0.62f);
+      glScalef(0.3f, 0.25f, 0.06f);
+      glutSolidCube(1.0);
+      glPopMatrix();
+      glPushMatrix();
+      glTranslatef( 0.45f, 0.15f, 0.62f);
+      glScalef(0.3f, 0.25f, 0.06f);
+      glutSolidCube(1.0);
+      glPopMatrix();
+
       glPopMatrix();
    }
 }
+
+
 
 
 /**
@@ -189,7 +278,6 @@ void igvEscena3D::set_ejes ( bool _ejes )
 {  ejes = _ejes;
 }
 
-// Mutadores: en RST acumulan; en SEQ apilan operaciones en orden de pulsación
 void igvEscena3D::applyTranslation(float dx, float dy, float dz) {
    int idx = objetoSeleccionado - 1;
    if (idx < 0 || idx > 2) return;
@@ -231,5 +319,3 @@ void igvEscena3D::applyScale(float factor) {
 void igvEscena3D::toggleMode() {
    mode = (mode == RST) ? SEQ : RST;
 }
-
-

@@ -1,6 +1,7 @@
-#include <cstdlib>
-
 #include "igvInterfaz.h"
+#include <cstdio>
+
+#include <cstdlib>
 
 // Aplicaci?n del patr?n Singleton
 igvInterfaz* igvInterfaz::_instancia = nullptr;
@@ -12,6 +13,13 @@ igvInterfaz* igvInterfaz::_instancia = nullptr;
  */
 igvInterfaz::igvInterfaz() : menuSelection(escena.EscenaA)
 {
+   // Configuración inicial de la cámara: perspectiva
+   camara.set(IGV_PERSPECTIVA,
+              igvPunto3D(3,2,4), // posición
+              igvPunto3D(0,0,0), // referencia
+              igvPunto3D(0,1,0), // up
+              60.0, 1.0, 0.1, 200.0);
+   vistaActual = OTRA;
 }
 
 // M?todos p?blicos ----------------------------------------
@@ -67,8 +75,12 @@ void igvInterfaz::configura_entorno(int argc, char** argv
    glEnable(GL_DEPTH_TEST); // activa el ocultamiento de superficies por z-buffer
    glClearColor(1.0, 1.0, 1.0, 0.0); // establece el color de fondo de la ventana
 
-   glEnable(GL_LIGHTING); // activa la iluminaci?n de la escena
-   glEnable(GL_NORMALIZE); // normaliza los vectores normales para c?lculo de iluminaci?n
+   glEnable(GL_LIGHTING); // activa la iluminación de la escena
+   glEnable(GL_NORMALIZE); // normaliza los vectores normales para cálculo de iluminación
+
+   // Ajustar aspecto inicial
+   if (_alto_ventana != 0)
+      camara.setAspecto(static_cast<double>(_ancho_ventana) / static_cast<double>(_alto_ventana));
 }
 
 /**
@@ -111,74 +123,107 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
    const float dA = 5.0f; // delta rotación en grados
    const float kUp = 1.05f; // factor escala +
    const float kDn = 1.0f / kUp; // factor escala -
+   const double dOrbit = 5.0; // grados órbita
+   const double dPitch = 5.0; // grados cabeceo
+   const double dYaw = 5.0;   // grados yaw
+   const double dNear = 0.1;  // incremento near
+   const double dFar = 1.0;   // incremento far
 
    switch (key)
    {
-   case 'e': // activa/desactiva la visualizaci?n de los ejes
-   case 'E':
+   case 'c': case 'C': // activar/desactivar control de cámara
+      _instancia->camara.toggleControl();
+      break;
+   case 'e': case 'E': // ejes
       _instancia->escena.set_ejes(!_instancia->escena.get_ejes());
       break;
-
-   // Modo de transformaciones (RST <-> SEQ)
-   case 'm':
-   case 'M':
+   case 'm': case 'M': // modo transformaciones objetos
       _instancia->escena.toggleMode();
       break;
+   case 'v': case 'V': { // CICLAR vistas: OTRA -> PLANTA -> PERFIL -> ALZADO -> OTRA
+         Vista next = OTRA;
+         switch (_instancia->vistaActual) {
+         case OTRA:   next = PLANTA; break;
+         case PLANTA: next = PERFIL; break;
+         case PERFIL: next = ALZADO; break;
+         case ALZADO: next = OTRA;   break;
+         }
+         _instancia->aplicarVista(next);
+   } break;
 
-   // Selección de objeto
-   case '1': _instancia->escena.objetoSeleccionado = 1;
-      break;
-   case '2': _instancia->escena.objetoSeleccionado = 2;
-      break;
-   case '3': _instancia->escena.objetoSeleccionado = 3;
-      break;
-
-   // Traslación en Y
-   case 'u': _instancia->escena.applyTranslation(0.0f, +dT, 0.0f);
-      break;
-   case 'U': _instancia->escena.applyTranslation(0.0f, -dT, 0.0f);
-      break;
-
-   // Rotaciones
-   case 'x': _instancia->escena.applyRotation(+dA, 0.0f, 0.0f);
-      break;
-   case 'X': _instancia->escena.applyRotation(-dA, 0.0f, 0.0f);
-      break;
-   case 'y': _instancia->escena.applyRotation(0.0f, +dA, 0.0f);
-      break;
-   case 'Y': _instancia->escena.applyRotation(0.0f, -dA, 0.0f);
-      break;
-   case 'z': _instancia->escena.applyRotation(0.0f, 0.0f, +dA);
-      break;
-   case 'Z': _instancia->escena.applyRotation(0.0f, 0.0f, -dA);
+   case '4':
+      _instancia->multiViewport = !_instancia->multiViewport;
       break;
 
-   // Escalado homogéneo
-   case 's': _instancia->escena.applyScale(kUp);
-      break;
-   case 'S': _instancia->escena.applyScale(kDn);
-      break;
+   // Selección de objeto (solo si no estamos en control de cámara)
+   case '1': if(!_instancia->camara.isControlActivo()) _instancia->escena.objetoSeleccionado = 1; break;
+   case '2': if(!_instancia->camara.isControlActivo()) _instancia->escena.objetoSeleccionado = 2; break;
+   case '3': if(!_instancia->camara.isControlActivo()) _instancia->escena.objetoSeleccionado = 3; break;
 
-   case 27: exit(1);
+   // Traslación en Y (objetos)
+   case 'u': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyTranslation(0.0f, +dT, 0.0f); break;
+   case 'U': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyTranslation(0.0f, -dT, 0.0f); break;
+
+   // Rotaciones objetos o yaw cámara
+   case 'y':
+      if (_instancia->camara.isControlActivo()) _instancia->camara.yaw(+dYaw);
+      else _instancia->escena.applyRotation(0.0f, +dA, 0.0f);
       break;
+   case 'Y':
+      if (_instancia->camara.isControlActivo()) _instancia->camara.yaw(-dYaw);
+      else _instancia->escena.applyRotation(0.0f, -dA, 0.0f);
+      break;
+   case 'x': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyRotation(+dA, 0.0f, 0.0f); break;
+   case 'X': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyRotation(-dA, 0.0f, 0.0f); break;
+   case 'z': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyRotation(0.0f, 0.0f, +dA); break;
+   case 'Z': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyRotation(0.0f, 0.0f, -dA); break;
+
+   // Escalado homogéneo objetos
+   case 's': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyScale(kUp); break;
+   case 'S': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyScale(kDn); break;
+
+   // Toggle proyección p/P
+   case 'p': case 'P': {
+      if (_instancia->camara.getTipo() == IGV_PERSPECTIVA) _instancia->camara.setTipo(IGV_PARALELA);
+      else _instancia->camara.setTipo(IGV_PERSPECTIVA);
+   } break;
+
+   // Ajuste planos near/far
+   case 'f': _instancia->camara.adjustNear(+dNear); break; // mover near hacia delante (aumenta znear)
+   case 'F': _instancia->camara.adjustNear(-dNear); break; // mover near hacia atrás (disminuye znear)
+   case 'b': _instancia->camara.adjustFar(+dFar); break;   // alejar far
+   case 'B': _instancia->camara.adjustFar(-dFar); break;   // acercar far
+
+   // Zoom cámara
+   case '+': _instancia->camara.zoom(10.0); break;   // acercar
+   case '-': _instancia->camara.zoom(-10.0); break;  // alejar
+
+   case 27: exit(1); break;
    }
-   glutPostRedisplay(); // renueva el contenido de la ventana de vision
+   glutPostRedisplay();
 }
 
 // --- handle arrows in specialFunc ---
 void igvInterfaz::specialFunc(int key, int x, int y)
 {
    const float dT = 0.1f;
-   switch (key)
-   {
-   case GLUT_KEY_LEFT: _instancia->escena.applyTranslation(-dT, 0.0f, 0.0f);
-      break; // +X
-   case GLUT_KEY_RIGHT: _instancia->escena.applyTranslation(+dT, 0.0f, 0.0f);
-      break; // -X
-   case GLUT_KEY_UP: _instancia->escena.applyTranslation(0.0f, 0.0f, +dT);
-      break; // +Z
-   case GLUT_KEY_DOWN: _instancia->escena.applyTranslation(0.0f, 0.0f, -dT);
-      break; // -Z
+   const double dOrbit = 5.0; // grados
+   const double dPitch = 5.0; // grados
+   if (_instancia->camara.isControlActivo()) {
+      switch (key) {
+      case GLUT_KEY_LEFT: _instancia->camara.orbitY(-dOrbit); break;
+      case GLUT_KEY_RIGHT: _instancia->camara.orbitY(+dOrbit); break;
+      case GLUT_KEY_UP: _instancia->camara.pitch(+dPitch); break;
+      case GLUT_KEY_DOWN: _instancia->camara.pitch(-dPitch); break;
+      }
+   } else {
+      switch (key)
+      {
+      case GLUT_KEY_LEFT: _instancia->escena.applyTranslation(-dT, 0.0f, 0.0f); break;
+      case GLUT_KEY_RIGHT: _instancia->escena.applyTranslation(+dT, 0.0f, 0.0f); break;
+      case GLUT_KEY_UP: _instancia->escena.applyTranslation(0.0f, 0.0f, +dT); break;
+      case GLUT_KEY_DOWN: _instancia->escena.applyTranslation(0.0f, 0.0f, -dT); break;
+      }
    }
    glutPostRedisplay();
 }
@@ -192,25 +237,13 @@ void igvInterfaz::specialFunc(int key, int x, int y)
  */
 void igvInterfaz::reshapeFunc(int w, int h)
 {
-   // dimensiona el viewport al nuevo ancho y alto de la ventana
    glViewport(0, 0, (GLsizei)w, (GLsizei)h);
-
-   // guardamos valores nuevos de la ventana de visualizacion
    _instancia->set_ancho_ventana(w);
    _instancia->set_alto_ventana(h);
-
-   // establece el tipo de proyeccion a utilizar
-   glMatrixMode(GL_PROJECTION);
-   glLoadIdentity();
-
-   glOrtho(-1 * 5, 1 * 5, -1 * 5, 1 * 5, -1 * 5, 200);
-
-   // se define la camara de vision
-   glMatrixMode(GL_MODELVIEW);
-   glLoadIdentity();
-
-   gluLookAt(1.5, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0); // vista en perspectiva
-   //gluLookAt(1.5,0,0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0); // vista en planta desde el eje X positivo
+   if (h != 0)
+      _instancia->camara.setAspecto(static_cast<double>(w)/static_cast<double>(h));
+   // Reaplicamos cámara para que la nueva proyección se ajuste
+   _instancia->camara.aplicar();
 }
 
 /**
@@ -218,7 +251,47 @@ void igvInterfaz::reshapeFunc(int w, int h)
  */
 void igvInterfaz::displayFunc()
 {
-   _instancia->escena.visualizar(_instancia->menuSelection);
+   glClear ( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+   if (!_instancia->multiViewport) {
+      _instancia->camara.aplicar();
+      _instancia->escena.visualizar(_instancia->menuSelection);
+   } else {
+      int W = _instancia->ancho_ventana;
+      int H = _instancia->alto_ventana;
+      int w2 = W/2; int h2 = H/2;
+
+      auto drawViewport = [&](int x, int y, int w, int h, Vista v, bool perspective){
+         glViewport(x,y,w,h);
+         igvCamara camLocal;
+         auto zn = _instancia->camara.getNear();
+         auto zf = _instancia->camara.getFar();
+
+         if (v == PLANTA)
+            camLocal.set(perspective? IGV_PERSPECTIVA:IGV_PARALELA,
+                         igvPunto3D(0,10,0), igvPunto3D(0,0,0), igvPunto3D(0,0,-1),
+                         60.0, (double)w/h, zn, zf);
+         else if (v == ALZADO)
+            camLocal.set(perspective? IGV_PERSPECTIVA:IGV_PARALELA,
+                         igvPunto3D(0,0,10), igvPunto3D(0,0,0), igvPunto3D(0,1,0),
+                         60.0, (double)w/h, zn, zf);
+         else if (v == PERFIL)
+            camLocal.set(perspective? IGV_PERSPECTIVA:IGV_PARALELA,
+                         igvPunto3D(10,0,0), igvPunto3D(0,0,0), igvPunto3D(0,1,0),
+                         60.0, (double)w/h, zn, zf);
+         camLocal.setAspecto((double)w/h);
+         camLocal.aplicar();
+         _instancia->escena.visualizar(_instancia->menuSelection);
+      };
+      // Superior izquierda: cámara libre actual
+      drawViewport(0,h2,w2,h2,OTRA,true);
+      // Superior derecha: planta
+      drawViewport(w2,h2,w2,h2,PLANTA,false);
+      // Inferior izquierda: alzado
+      drawViewport(0,0,w2,h2,ALZADO,false);
+      // Inferior derecha: perfil
+      drawViewport(w2,0,w2,h2,PERFIL,false);
+   }
+   glutSwapBuffers();
 }
 
 /**
@@ -282,4 +355,37 @@ void igvInterfaz::set_ancho_ventana(int _ancho_ventana)
 void igvInterfaz::set_alto_ventana(int _alto_ventana)
 {
    alto_ventana = _alto_ventana;
+}
+
+/**
+ * M?todo para aplicar una vista c?nica predefinida
+ * @param v Tipo de vista c?nica a aplicar
+ */
+void igvInterfaz::aplicarVista(Vista v)
+{
+   vistaActual = v;
+   switch (v)
+   {
+   case PLANTA: // desde arriba
+      camara.set(IGV_PARALELA,
+                 igvPunto3D(0,10,0), igvPunto3D(0,0,0), igvPunto3D(0,0,-1),
+                 -5,5,-5,5, 0.1, 200.0);
+      break;
+   case ALZADO: // frontal
+      camara.set(IGV_PARALELA,
+                 igvPunto3D(0,0,10), igvPunto3D(0,0,0), igvPunto3D(0,1,0),
+                 -5,5,-5,5, 0.1, 200.0);
+      break;
+   case PERFIL: // lateral
+      camara.set(IGV_PARALELA,
+                 igvPunto3D(10,0,0), igvPunto3D(0,0,0), igvPunto3D(0,1,0),
+                 -5,5,-5,5, 0.1, 200.0);
+      break;
+   case OTRA:
+      // vuelve a perspectiva por defecto
+      camara.set(IGV_PERSPECTIVA,
+                 igvPunto3D(3,2,4), igvPunto3D(0,0,0), igvPunto3D(0,1,0),
+                 60.0, (alto_ventana? (double)ancho_ventana/alto_ventana : 1.0), 0.1, 200.0);
+      break;
+   }
 }

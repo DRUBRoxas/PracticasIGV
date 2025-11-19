@@ -2,6 +2,9 @@
 
 #include "igvInterfaz.h"
 
+/**
+ * @author Manuel Sánchez Salazar
+ */
 int main (int argc, char** argv)
 {  // inicializa la ventana de visualización
    igvInterfaz::getInstancia().configura_entorno ( argc, argv

@@ -10,6 +10,10 @@ add_executable(${PROJECT_NAME}
         igvEscena3D.h
         igvInterfaz.cpp
         igvInterfaz.h
+        igvCamara.cpp
+        igvCamara.h
+        igvPunto3D.cpp
+        igvPunto3D.h
         pr1a.cpp)
 
 if (LINUX)

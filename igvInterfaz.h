@@ -13,6 +13,8 @@
 
 #include <string>
 #include "igvEscena3D.h"
+#include "igvCamara.h"
+#include "igvPunto3D.h"
 
 /**
  * Los objetos de esta clase encapsulan la interfaz y el estado de la aplicación
@@ -35,12 +37,16 @@ private:
     int alto_ventana = 0; ///< Alto de la ventana de visualización
 
     igvEscena3D escena; ///< Escena que se visualiza en la ventana definida por igvInterfaz
+    igvCamara camara;   ///< Cámara activa
+    Vista vistaActual = OTRA; ///< Vista canónica actual
     int menuSelection = 0; ///< Última opción de menú seleccionada
+    bool multiViewport = false; ///< Muestra varios viewports simultáneos
 
     // Aplicación del patrón Singleton
     static igvInterfaz* _instancia; ///< Puntero al objeto único de la clase
     igvInterfaz();
 
+    void aplicarVista(Vista v); // ajusta posición/orientación cámara
 public:
     static igvInterfaz& getInstancia();
 
