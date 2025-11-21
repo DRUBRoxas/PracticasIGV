@@ -197,7 +197,8 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
    // Zoom cámara
    case '+': _instancia->camara.zoom(10.0); break;   // acercar
    case '-': _instancia->camara.zoom(-10.0); break;  // alejar
-
+   case 'w': case 'W': _instancia->escena.toggleMalla(); break; // vermalla alámbrica (Para ver como se hace el moñeco con las mallas triangulares)
+   case 'j': case 'J': _instancia->escena.cambiarSombreado(); break; // cambiar entre sombreado plano y suave
    case 27: exit(1); break;
    }
    glutPostRedisplay();
@@ -225,6 +226,19 @@ void igvInterfaz::specialFunc(int key, int x, int y)
       case GLUT_KEY_DOWN: _instancia->escena.applyTranslation(0.0f, 0.0f, -dT); break;
       }
    }
+   glutPostRedisplay();
+}
+
+void igvInterfaz::mouseFunc(int button, int state, int x, int y) {
+   if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+      _instancia->escena.setLastMouse(x, y);
+      _instancia->camara.aplicar();
+      _instancia->escena.pick(x, y);
+   }
+}
+
+void igvInterfaz::motionFunc(int x, int y) {
+   _instancia->escena.arrastrar(x,y);
    glutPostRedisplay();
 }
 
@@ -315,6 +329,8 @@ void igvInterfaz::inicializa_callbacks()
    glutReshapeFunc(reshapeFunc);
    glutDisplayFunc(displayFunc);
    glutSpecialFunc(specialFunc);
+   glutMouseFunc(mouseFunc);
+   glutMotionFunc(motionFunc);
 }
 
 /**

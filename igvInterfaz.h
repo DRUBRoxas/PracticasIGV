@@ -61,6 +61,8 @@ public:
     static void displayFunc(); // método para visualizar la escena
     static void menuHandle(int value); // método para gestionar la selección de opciones de menú
     static void specialFunc(int key, int x, int y);
+    static void mouseFunc(int button, int state, int x, int y); // Clicks
+    static void motionFunc(int x, int y); // Arrastar el raton
 
 
     // Métodos
@@ -82,6 +84,8 @@ public:
 
     void set_ancho_ventana(int _ancho_ventana);
     void set_alto_ventana(int _alto_ventana);
+
+
 };
 
 #endif   // __IGVINTERFAZ
