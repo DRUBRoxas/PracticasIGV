@@ -368,7 +368,8 @@ void igvEscena3D::renderEscenaA ()
       GLfloat colorGodzilla[] = {0.2f, 0.6f, 0.3f, 1.0f}; // Verde oscuro
       applyFor(1); // Aplicar transformaciones interactivas
 
-      setColor(100, colorGodzilla);
+
+      setColor(GODZILLA, colorGodzilla);
 
       if (objetoGodzilla) objetoGodzilla->visualizar();
    glPopMatrix();
@@ -695,6 +696,14 @@ void igvEscena3D::pick(int x, int y) {
 
    // 5. Actualizar la parte activa
    parteActiva = idParte;
+
+   if (parteActiva == GODZILLA) {
+      objetoSeleccionado = 2;
+   } else if (parteActiva == ROBOT_COMPLETO) {
+      objetoSeleccionado = 1;
+   } else if (parteActiva > 0 && parteActiva < 100) {
+      objetoSeleccionado = 1;
+   }
    // 6. Reactivar luces y texturas
    glEnable(GL_LIGHTING);
    glEnable(GL_DITHER);

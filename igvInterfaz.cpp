@@ -95,6 +95,7 @@ void igvInterfaz::create_menu()
                     , _instancia->escena.EscenaB);
    glutAddMenuEntry(_instancia->escena.Nombre_EscenaC
                     , _instancia->escena.EscenaC);
+   glutAddMenuEntry("Animar Camara (On/Off)", 999);
 
    glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
@@ -151,15 +152,22 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
          _instancia->aplicarVista(next);
    } break;
 
-   case '4':
+   case 'o': case 'O': // activar/desactivar multi-viewport
       _instancia->multiViewport = !_instancia->multiViewport;
       break;
 
    // Selección de objeto (solo si no estamos en control de cámara)
-   case '1': if(!_instancia->camara.isControlActivo()) _instancia->escena.objetoSeleccionado = 1; break;
-   case '2': if(!_instancia->camara.isControlActivo()) _instancia->escena.objetoSeleccionado = 2; break;
-   case '3': if(!_instancia->camara.isControlActivo()) _instancia->escena.objetoSeleccionado = 3; break;
-
+      case '0': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::ROBOT_COMPLETO; _instancia->escena.objetoSeleccionado = 1; break;
+      case '1': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::CABEZA; break;
+      case '2': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::BRAZO_IZQ; break;
+      case '3' : if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::BRAZO_DER; break;
+      case '4': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::PIERNA_IZQ; break;
+      case '5': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::PIERNA_DER; break;
+      case '6': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::ANTEBRAZO_IZQ; break;
+      case '7': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::ANTEBRAZO_DER; break;
+      case '8': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::PANTORRILLA_IZQ; break;
+      case '9': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::PANTORRILLA_DER; break;
+      case 'h': case 'H': if(!_instancia->camara.isControlActivo()) _instancia->escena.parteActiva = igvEscena3D::GODZILLA; _instancia->escena.objetoSeleccionado = 2; break; // fondo
    // Traslación en Y (objetos)
    case 'u': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyTranslation(0.0f, +dT, 0.0f); break;
    case 'U': if(!_instancia->camara.isControlActivo()) _instancia->escena.applyTranslation(0.0f, -dT, 0.0f); break;
@@ -197,6 +205,7 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
    // Zoom cámara
    case '+': _instancia->camara.zoom(10.0); break;   // acercar
    case '-': _instancia->camara.zoom(-10.0); break;  // alejar
+   case 'g': case 'G': _instancia->animacionCamara = !_instancia->animacionCamara; break; // activar/desactivar animación cámara
    case 'w': case 'W': _instancia->escena.toggleMalla(); break; // vermalla alámbrica (Para ver como se hace el moñeco con las mallas triangulares)
    case 'j': case 'J': _instancia->escena.cambiarSombreado(); break; // cambiar entre sombreado plano y suave
    case 27: exit(1); break;
@@ -208,6 +217,7 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
 void igvInterfaz::specialFunc(int key, int x, int y)
 {
    const float dT = 0.1f;
+   const float factor = 5.0f;
    const double dOrbit = 5.0; // grados
    const double dPitch = 5.0; // grados
    if (_instancia->camara.isControlActivo()) {
@@ -218,12 +228,22 @@ void igvInterfaz::specialFunc(int key, int x, int y)
       case GLUT_KEY_DOWN: _instancia->camara.pitch(-dPitch); break;
       }
    } else {
-      switch (key)
-      {
-      case GLUT_KEY_LEFT: _instancia->escena.applyTranslation(-dT, 0.0f, 0.0f); break;
-      case GLUT_KEY_RIGHT: _instancia->escena.applyTranslation(+dT, 0.0f, 0.0f); break;
-      case GLUT_KEY_UP: _instancia->escena.applyTranslation(0.0f, 0.0f, +dT); break;
-      case GLUT_KEY_DOWN: _instancia->escena.applyTranslation(0.0f, 0.0f, -dT); break;
+      // 1. Articulaciones del robot (IDs 1 a 9)
+      if (_instancia->escena.parteActiva > 0 && _instancia->escena.parteActiva <= 9) {
+         switch (key)
+         {
+            case GLUT_KEY_LEFT: _instancia->escena.moverArticulacion(-factor, 0.0f); break;
+            case GLUT_KEY_RIGHT: _instancia->escena.moverArticulacion(+factor, 0.0f); break;
+            case GLUT_KEY_UP: _instancia->escena.moverArticulacion(0.0f, +factor); break;
+            case GLUT_KEY_DOWN: _instancia->escena.moverArticulacion(0.0f, -factor); break;
+         }
+      } else { // 2. Traslaciones del objeto completo (ID 0) o Godzilla (ID 100)
+         switch (key){
+            case GLUT_KEY_LEFT: _instancia->escena.applyTranslation(-dT, 0.0f, 0.0f); break;
+            case GLUT_KEY_RIGHT: _instancia->escena.applyTranslation(+dT, 0.0f, 0.0f); break;
+            case GLUT_KEY_UP: _instancia->escena.applyTranslation(0.0f, 0.0f, +dT); break;
+            case GLUT_KEY_DOWN: _instancia->escena.applyTranslation(0.0f, 0.0f, -dT); break;
+         }
       }
    }
    glutPostRedisplay();
@@ -316,8 +336,18 @@ void igvInterfaz::displayFunc()
  */
 void igvInterfaz::menuHandle(int value)
 {
-   _instancia->menuSelection = value;
+   if (value == 999) { // activar/desactivar animación cámara
+      _instancia->animacionCamara = !_instancia->animacionCamara;
+   }
    glutPostRedisplay(); // renew the content of the window
+}
+
+void igvInterfaz::idleFunc()
+{
+   if (_instancia->animacionCamara) {
+      _instancia->camara.orbitY(0.08);
+      glutPostRedisplay();
+   }
 }
 
 /**
@@ -331,6 +361,7 @@ void igvInterfaz::inicializa_callbacks()
    glutSpecialFunc(specialFunc);
    glutMouseFunc(mouseFunc);
    glutMotionFunc(motionFunc);
+   glutIdleFunc(idleFunc);
 }
 
 /**

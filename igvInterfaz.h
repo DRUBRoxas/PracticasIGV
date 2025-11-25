@@ -41,6 +41,7 @@ private:
     Vista vistaActual = OTRA; ///< Vista canónica actual
     int menuSelection = 0; ///< Última opción de menú seleccionada
     bool multiViewport = false; ///< Muestra varios viewports simultáneos
+    bool animacionCamara = false; ///< Indica si la cámara está en animación automática
 
     // Aplicación del patrón Singleton
     static igvInterfaz* _instancia; ///< Puntero al objeto único de la clase
@@ -63,7 +64,7 @@ public:
     static void specialFunc(int key, int x, int y);
     static void mouseFunc(int button, int state, int x, int y); // Clicks
     static void motionFunc(int x, int y); // Arrastar el raton
-
+    static void idleFunc(); // función de animación
 
     // Métodos
     // inicializa todos los parámetros para crear una ventana de visualización

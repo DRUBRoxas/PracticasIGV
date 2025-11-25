@@ -37,7 +37,9 @@ public:
         ANTEBRAZO_IZQ = 6,
         ANTEBRAZO_DER = 7,
         PANTORRILLA_IZQ = 8,
-        PANTORRILLA_DER = 9
+        PANTORRILLA_DER = 9,
+
+        GODZILLA = 100
     };
 
 
@@ -114,9 +116,12 @@ public:
 
     // Metodo para saber que has clicado
     void pick(int x, int y);
+    // Metodo para darle una animación automática al robot TODO
+    void animarRobot();
 
-    // Metodo para mover
+    // Metodo para mover el objeto con el raton
     void arrastrar(int x, int y);
+    // Guardar la última posición del ratón
     void setLastMouse(int x, int y) {
         lastMouseX = x;
         lastMouseY = y;
