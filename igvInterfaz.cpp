@@ -89,12 +89,7 @@ void igvInterfaz::configura_entorno(int argc, char** argv
 void igvInterfaz::create_menu()
 {
    int menu_id = glutCreateMenu(menuHandle);
-   glutAddMenuEntry(_instancia->escena.Nombre_EscenaA
-                    , _instancia->escena.EscenaA);
-   glutAddMenuEntry(_instancia->escena.Nombre_EscenaB
-                    , _instancia->escena.EscenaB);
-   glutAddMenuEntry(_instancia->escena.Nombre_EscenaC
-                    , _instancia->escena.EscenaC);
+   glutAddMenuEntry("Animar Robot (On/Off)", 998);
    glutAddMenuEntry("Animar Camara (On/Off)", 999);
 
    glutAttachMenu(GLUT_RIGHT_BUTTON);
@@ -206,6 +201,7 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
    case '+': _instancia->camara.zoom(10.0); break;   // acercar
    case '-': _instancia->camara.zoom(-10.0); break;  // alejar
    case 'g': case 'G': _instancia->animacionCamara = !_instancia->animacionCamara; break; // activar/desactivar animación cámara
+   case 'a': case'A': _instancia->animacionRobot = !_instancia->animacionRobot; break; // activar/desactivar animación robot
    case 'w': case 'W': _instancia->escena.toggleMalla(); break; // vermalla alámbrica (Para ver como se hace el moñeco con las mallas triangulares)
    case 'j': case 'J': _instancia->escena.cambiarSombreado(); break; // cambiar entre sombreado plano y suave
    case 27: exit(1); break;
@@ -336,6 +332,9 @@ void igvInterfaz::displayFunc()
  */
 void igvInterfaz::menuHandle(int value)
 {
+   if (value == 998) {
+      _instancia->animacionRobot = !_instancia->animacionRobot;
+   }
    if (value == 999) { // activar/desactivar animación cámara
       _instancia->animacionCamara = !_instancia->animacionCamara;
    }
@@ -344,8 +343,18 @@ void igvInterfaz::menuHandle(int value)
 
 void igvInterfaz::idleFunc()
 {
+   bool huboCambios = false;
    if (_instancia->animacionCamara) {
       _instancia->camara.orbitY(0.08);
+      huboCambios = true;
+
+   }
+   if (_instancia->animacionRobot) {
+      _instancia->escena.animarRobot();
+      huboCambios = true;
+   }
+
+   if (huboCambios) {
       glutPostRedisplay();
    }
 }

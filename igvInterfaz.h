@@ -42,6 +42,7 @@ private:
     int menuSelection = 0; ///< Última opción de menú seleccionada
     bool multiViewport = false; ///< Muestra varios viewports simultáneos
     bool animacionCamara = false; ///< Indica si la cámara está en animación automática
+    bool animacionRobot = false; ///< Indica si el robot está en animación automática
 
     // Aplicación del patrón Singleton
     static igvInterfaz* _instancia; ///< Puntero al objeto único de la clase
