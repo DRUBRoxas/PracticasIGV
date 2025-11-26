@@ -116,7 +116,7 @@ public:
 
     // Metodo para saber que has clicado
     void pick(int x, int y);
-    // Metodo para darle una animación automática al robot TODO
+    // Metodo para darle una animación automática al robot
     void animarRobot();
 
     // Metodo para mover el objeto con el raton
