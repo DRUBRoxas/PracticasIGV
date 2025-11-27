@@ -201,7 +201,12 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
    case '+': _instancia->camara.zoom(10.0); break;   // acercar
    case '-': _instancia->camara.zoom(-10.0); break;  // alejar
    case 'g': case 'G': _instancia->animacionCamara = !_instancia->animacionCamara; break; // activar/desactivar animación cámara
-   case 'a': case'A': _instancia->animacionRobot = !_instancia->animacionRobot; break; // activar/desactivar animación robot
+   case 'a': case 'A':
+      _instancia->animacionRobot = !_instancia->animacionRobot;
+      if (_instancia->animacionRobot) _instancia->escena.startAnimacion();
+      else _instancia->escena.stopAnimacion();
+      break;
+
    case 'w': case 'W': _instancia->escena.toggleMalla(); break; // vermalla alámbrica (Para ver como se hace el moñeco con las mallas triangulares)
    case 'j': case 'J': _instancia->escena.cambiarSombreado(); break; // cambiar entre sombreado plano y suave
    case 27: exit(1); break;
@@ -334,6 +339,8 @@ void igvInterfaz::menuHandle(int value)
 {
    if (value == 998) {
       _instancia->animacionRobot = !_instancia->animacionRobot;
+      if (_instancia->animacionRobot) _instancia->escena.startAnimacion();
+      else _instancia->escena.stopAnimacion();
    }
    if (value == 999) { // activar/desactivar animación cámara
       _instancia->animacionCamara = !_instancia->animacionCamara;

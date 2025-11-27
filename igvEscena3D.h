@@ -74,6 +74,11 @@ private:
         float pantorrillaDer = 0.0f;
     } robotState;
 
+    // Pose inicial guardada al arrancar la animación (baseline)
+    Robot robotStateInitial;
+    bool animacionActiva = false;
+    float animTime = 0.0f; // tiempo de animación en segundos
+
     struct Op {
         enum Kind { T, RX, RY, RZ, S } kind;
         float v1, v2, v3; // T: dx,dy,dz | RX/RY/RZ: angle in v1 | S: factor in v1
@@ -118,6 +123,11 @@ public:
     void pick(int x, int y);
     // Metodo para darle una animación automática al robot
     void animarRobot();
+
+    // Control de ciclo de animación: inicio / parada (restauran pose)
+    void startAnimacion();
+    void stopAnimacion();
+    bool isAnimando() const { return animacionActiva; }
 
     // Metodo para mover el objeto con el raton
     void arrastrar(int x, int y);

@@ -16,6 +16,10 @@ igvEscena3D::igvEscena3D() {
    }
    // Crear malla Godzilla
    generarMallaGodzilla();
+
+   // Guardar la pose inicial del robot (baseline) la primera vez que se construye la escena.
+   // Esto asegura que la animación siempre sea relativa a la posición inicial al arrancar el programa.
+   robotStateInitial = robotState;
 }
 
 
@@ -242,7 +246,7 @@ void igvEscena3D::generarMallaGodzilla() {
 
     // --- 6. BRAZOS (CERRADOS) ---
     // Brazos Tubos
-    addTuboHorizontal(-0.6f, 0.9f, 0.4f, 0.2f, 0.2f,  -0.6f, 0.7f, 0.9f, 0.15f, 0.15f, 8, v, n, i, idx);
+    addTuboHorizontal(-0.6f, 0.9f, 0.4f, 0.2f, 0.2f,  0.6f, 0.7f, 0.9f, 0.15f, 0.15f, 8, v, n, i, idx);
     addTuboHorizontal( 0.6f, 0.9f, 0.4f, 0.2f, 0.2f,   0.6f, 0.7f, 0.9f, 0.15f, 0.15f, 8, v, n, i, idx);
 
     // Tapas de las Manos
@@ -877,9 +881,26 @@ void igvEscena3D::toggleMode() {
    mode = (mode == RST) ? SEQ : RST;
 }
 
+void igvEscena3D::startAnimacion() {
+   robotState = robotStateInitial;
+   // No sobrescribimos la baseline (se tomó en el constructor).
+   // Solo (re)iniciamos el tiempo de animación y activamos la animación.
+   animTime = 0.0f;
+   animacionActiva = true;
+}
+
+void igvEscena3D::stopAnimacion() {
+   // Restaurar pose inicial guardada y desactivar animación
+   robotState = robotStateInitial;
+   animacionActiva = false;
+   animTime = 0.0f;
+}
+
 void igvEscena3D::animarRobot() {
-   // Variable estática para el tiempo
-   static float t = 0.0f;
+   if (!animacionActiva) return; // nada que hacer si no está activa
+
+   // --- tiempo de animación ---
+   float &t = animTime;
 
    // --- AJUSTE DE VELOCIDAD ---
    const float velocidad = 0.05f;
@@ -892,25 +913,22 @@ void igvEscena3D::animarRobot() {
    float ampPiernas = 45.0f;
 
    // --- CICLO DE MARCHA (WALK CYCLE) ---
-
-   // BRAZOS (Péndulo simple)
-   robotState.brazoIzq = ampBrazos * sin(t);
-   robotState.brazoDer = ampBrazos * sin(t + M_PI); // Desfasado 180 grados
-
-   // PIERNAS (Péndulo simple opuesto a los brazos)
-   robotState.piernaIzq = ampPiernas * sin(t + M_PI);
-   robotState.piernaDer = ampPiernas * sin(t);
+   // Aplicar animación relativa a la pose inicial guardada
+   robotState.brazoIzq = robotStateInitial.brazoIzq + ampBrazos * sin(t);
+   robotState.brazoDer = robotStateInitial.brazoDer + ampBrazos * sin(t + M_PI); // Desfasado 180 grados
+   robotState.piernaIzq = robotStateInitial.piernaIzq + ampPiernas * sin(t + M_PI);
+   robotState.piernaDer = robotStateInitial.piernaDer + ampPiernas * sin(t);
 
    // --- DETALLES PARA FLUIDEZ (ARTICULACIONES SECUNDARIAS) ---
 
-   // CODOS: Se flexionan un poco cuando el brazo va hacia adelante (t > 0 o t < 0)
-   robotState.codoIzq = -30.0f * abs(sin(t + 0.5f));
-   robotState.codoDer = -30.0f * abs(sin(t + M_PI + 0.5f));
+   // CODOS: relativos a la pose inicial
+   robotState.codoIzq = robotStateInitial.codoIzq + (-30.0f * fabs(sin(t + 0.5f)));
+   robotState.codoDer = robotStateInitial.codoDer + (-30.0f * fabs(sin(t + M_PI + 0.5f)));
 
-   // RODILLAS: Se flexionan cuando la pierna va hacia adelante (t > 0 o t < 0)
-   robotState.pantorrillaIzq = 40.0f * std::max(0.0f, (float)sin(t + M_PI));
-   robotState.pantorrillaDer = 40.0f * std::max(0.0f, (float)sin(t));
+   // RODILLAS: relativas a la pose inicial
+   robotState.pantorrillaIzq = robotStateInitial.pantorrillaIzq + 40.0f * std::max(0.0f, (float)sin(t + M_PI));
+   robotState.pantorrillaDer = robotStateInitial.pantorrillaDer + 40.0f * std::max(0.0f, (float)sin(t));
 
-   // CABEZA: Pequeño balanceo izquierda/derecha para dar vida
-   robotState.cabeza = 5.0f * sin(t * 0.5f);
+   // CABEZA: relativo a la pose inicial
+   robotState.cabeza = robotStateInitial.cabeza + 5.0f * sin(t * 0.5f);
 }
