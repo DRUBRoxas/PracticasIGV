@@ -3,6 +3,7 @@
 
 #include "igvEscena3D.h"
 
+#include <iostream>
 #include <math.h>
 
 // Métodos constructores -----------------------------------
@@ -17,6 +18,28 @@ igvEscena3D::igvEscena3D() {
    // Crear malla Godzilla
    generarMallaGodzilla();
 
+   // Generar Textura Ajedrez para el suelo
+   generarTexturaAjedrez();
+
+   texturaSuelo[0] = nullptr;
+   texturaSuelo[1] = nullptr;
+   try {
+      // Asegúrate de tener estas imágenes o cambiar el nombre
+      texturaSuelo[0] = new igvTextura("../baldosa.png");
+   } catch (std::exception& e) { std::cout << "Aviso: No se cargo baldosa.png (usando ajedrez)\n"; }
+
+   try {
+      texturaSuelo[1] = new igvTextura("../grass.png");
+   } catch (std::exception& e) { std::cout << "Aviso: No se cargo cesped.png (usando ajedrez)\n"; }
+
+   // 3. Definir 3 Materiales
+   // Material 0: Gris Mate (Base)
+   materialSuelo[0].set(igvColor(0.2, 0.2, 0.2), igvColor(0.6, 0.6, 0.6), igvColor(0.0, 0.0, 0.0), 0);
+   // Material 1: Dorado Brillante
+   materialSuelo[1].set(igvColor(0.25, 0.2, 0.07), igvColor(0.75, 0.6, 0.23), igvColor(0.63, 0.56, 0.37), 50.0);
+   // Material 2: Azul Plástico
+   materialSuelo[2].set(igvColor(0.0, 0.1, 0.3), igvColor(0.0, 0.3, 0.8), igvColor(0.5, 0.5, 0.5), 20.0);
+
    // Guardar la pose inicial del robot (baseline) la primera vez que se construye la escena.
    // Esto asegura que la animación siempre sea relativa a la posición inicial al arrancar el programa.
    robotStateInitial = robotState;
@@ -29,6 +52,148 @@ igvEscena3D::~igvEscena3D() {
       delete objetoGodzilla;
       objetoGodzilla = nullptr;
    }
+   // Liberar texturas del suelo
+   if (texturaSuelo[0]) {
+      delete texturaSuelo[0];
+      texturaSuelo[0] = nullptr;
+   }
+   if (texturaSuelo[1]) {
+      delete texturaSuelo[1];
+      texturaSuelo[1] = nullptr;
+   }
+   glDeleteTextures(1, &idTexturaAjedrez);
+}
+
+void igvEscena3D::pintarSuelo() {
+   // 1. Aplicar Material
+   materialSuelo[indiceMaterialActual].aplicar();
+
+   // 2. Configurar Textura
+   if (usarTextura) {
+      glEnable(GL_TEXTURE_2D);
+
+      // Seleccionar ID según el índice
+      unsigned int idToUse = idTexturaAjedrez; // Por defecto
+      if (indiceTexturaActual == 1 && texturaSuelo[0]) idToUse = texturaSuelo[0]->getIdTextura();
+      if (indiceTexturaActual == 2 && texturaSuelo[1]) idToUse = texturaSuelo[1]->getIdTextura();
+
+      glBindTexture(GL_TEXTURE_2D, idToUse);
+
+      // 3. Aplicar Filtros (MAG y MIN)
+      GLint mag = GL_LINEAR;
+      GLint min = GL_LINEAR;
+
+      switch (filtroActual) {
+         case FILTRO_NN: mag = GL_NEAREST; min = GL_NEAREST; break;
+         case FILTRO_NL: mag = GL_NEAREST; min = GL_LINEAR; break;
+         case FILTRO_LN: mag = GL_LINEAR;  min = GL_NEAREST; break;
+         case FILTRO_LL: mag = GL_LINEAR;  min = GL_LINEAR; break;
+      }
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min);
+      // Repeticion para que se vea bien el suelo
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+   } else {
+      glDisable(GL_TEXTURE_2D);
+   }
+
+   // 4. Dibujar Quad (Suelo)
+   // Dibujamos un suelo grande de 20x20
+   float tam = 10.0f;
+   float repeticiones = 5.0f; // Para que la textura se repita
+
+   // Ajustar normal hacia arriba
+   glNormal3f(0.0f, 1.0f, 0.0f);
+
+   glBegin(GL_QUADS);
+      glNormal3f(0,1,0);
+
+      glTexCoord2f(0,0); glVertex3f(-20, 0, -20);
+      glTexCoord2f(1,0); glVertex3f( 20, 0, -20);
+      glTexCoord2f(1,1); glVertex3f( 20, 0,  20);
+      glTexCoord2f(0,1); glVertex3f(-20, 0,  20);
+
+   glEnd();
+
+   glDisable(GL_TEXTURE_2D); // Limpieza
+}
+
+void igvEscena3D::inicializarSuelo() {
+   // Generar Textura Ajedrez para el suelo
+   generarTexturaAjedrez();
+
+   // Texturas desde archivo
+   texturaSuelo[0] = nullptr;
+   texturaSuelo[1] = nullptr;
+   try {
+      texturaSuelo[0] = new igvTextura("../baldosa.png");
+   } catch (std::exception& e) {
+      std::cout << "Aviso: No se cargo baldosa.png (usando ajedrez)\n";
+   }
+
+   try {
+      texturaSuelo[1] = new igvTextura("../grass.png");
+   } catch (std::exception& e) {
+      std::cout << "Aviso: No se cargo grass.png (usando ajedrez)\n";
+   }
+
+   // Material 0: Gris Mate (Base)
+   materialSuelo[0].set(
+      igvColor(0.2, 0.2, 0.2),
+      igvColor(0.6, 0.6, 0.6),
+      igvColor(0.0, 0.0, 0.0),
+      0.0
+   );
+   // Material 1: Dorado Brillante
+   materialSuelo[1].set(
+      igvColor(0.25, 0.2, 0.07),
+      igvColor(0.75, 0.6, 0.23),
+      igvColor(0.63, 0.56, 0.37),
+      50.0
+   );
+   // Material 2: Azul Plástico
+   materialSuelo[2].set(
+      igvColor(0.0, 0.1, 0.3),
+      igvColor(0.0, 0.3, 0.8),
+      igvColor(0.5, 0.5, 0.5),
+      20.0
+   );
+}
+
+void igvEscena3D::generarTexturaAjedrez() {
+   GLubyte image[64][64][4];
+
+   for (int i = 0; i < 64; i++) {
+      for (int j = 0; j < 64; j++) {
+         // Cada 8 píxeles cambiamos de color en x e y
+         int c = (((i & 0x8) == 0) ^ ((j & 0x8) == 0)) * 255;
+
+         image[i][j][0] = (GLubyte)c;     // R
+         image[i][j][1] = (GLubyte)c;     // G
+         image[i][j][2] = (GLubyte)c;     // B
+         image[i][j][3] = (GLubyte)255;   // Alpha
+      }
+   }
+
+   glGenTextures(1, &idTexturaAjedrez);
+   glBindTexture(GL_TEXTURE_2D, idTexturaAjedrez);
+
+   // Aseguramos alineación por si acaso
+   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+   glTexImage2D(
+       GL_TEXTURE_2D, 0, GL_RGBA,
+       64, 64, 0,
+       GL_RGBA, GL_UNSIGNED_BYTE, image
+   );
+
+   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
 
 void igvEscena3D::cambiarSombreado() {
@@ -327,6 +492,26 @@ void igvEscena3D::visualizar ( int escena )
  */
 void igvEscena3D::renderEscenaA ()
 {
+
+   glPushMatrix();
+      glTranslated(0.0f,-3.0f,0.0f);
+      pintarSuelo();
+   glPopMatrix();
+
+   glDisable(GL_TEXTURE_2D);
+
+   // B) Reiniciar Materiales: Volvemos a valores neutros para que los colores
+   // definidos en setColor (glMaterial con GL_EMISSION) se vean puros y no mezclados con el suelo.
+   GLfloat defaultAmbient[] = {0.2f, 0.2f, 0.2f, 1.0f};
+   GLfloat defaultDiffuse[] = {0.8f, 0.8f, 0.8f, 1.0f};
+   GLfloat defaultSpecular[] = {0.0f, 0.0f, 0.0f, 1.0f};
+   GLfloat defaultShininess[] = {0.0f};
+
+   glMaterialfv(GL_FRONT, GL_AMBIENT, defaultAmbient);
+   glMaterialfv(GL_FRONT, GL_DIFFUSE, defaultDiffuse);
+   glMaterialfv(GL_FRONT, GL_SPECULAR, defaultSpecular);
+   glMaterialfv(GL_FRONT, GL_SHININESS, defaultShininess);
+
    const GLfloat c_seleccion[] = {1.0f, 0.3f, 0.0f, 1.0f}; // Naranja para selección
 
    auto setColor = [&](int idParte, const GLfloat* color) {
@@ -583,101 +768,6 @@ void igvEscena3D::renderEscenaA ()
 
       glPopMatrix();
    }
-
-   // ===========================================================
-   // COCHE
-   // ===========================================================
-   /**{
-      glPushMatrix();
-      glTranslatef(0.0f, -0.1f, 0.0f); // un poco hacia abajo
-      applyFor(1);
-
-      const GLfloat c_chassis[] = {0.7f, 0.05f, 0.05f, 1.0f};
-      const GLfloat c_cabin[]   = {0.25f, 0.25f, 0.35f, 1.0f};
-      const GLfloat c_light[]   = {0.9f, 0.8f, 0.2f, 1.0f};
-
-      // Chasis
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_chassis);
-      glPushMatrix();
-         glScalef(1.8f, 0.3f, 1.0f);
-         glutSolidCube(1.0);
-      glPopMatrix();
-
-      // Cabina
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_cabin);
-      glPushMatrix();
-         glTranslatef(0.1f, 0.25f, 0.0f);
-         glScalef(0.9f, 0.4f, 0.9f);
-         glutSolidCube(1.0);
-      glPopMatrix();
-
-      // Faros
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_light);
-      glPushMatrix(); glTranslatef( 0.95f, 0.05f,  0.3f); glutSolidSphere(0.06, 14, 14); glPopMatrix();
-      glPushMatrix(); glTranslatef( 0.95f, 0.05f, -0.3f); glutSolidSphere(0.06, 14, 14); glPopMatrix();
-      glPopMatrix();
-   }*/
-
-   // ===========================================================
-   // CASA
-   // ===========================================================
-   /**{
-      glPushMatrix();
-      glTranslatef(2.5f, 0.0f, 0.0f); // desplazar a la derecha
-      applyFor(2);
-
-      const GLfloat c_wall[]   = {0.45f, 0.25f, 0.15f, 1.0f};  // paredes marrón oscuro
-      const GLfloat c_roof[]   = {0.35f, 0.05f, 0.05f, 1.0f};  // techo granate
-      const GLfloat c_door[]   = {0.25f, 0.15f, 0.05f, 1.0f};  // puerta madera oscura
-      const GLfloat c_window[] = {0.05f, 0.25f, 0.55f, 1.0f};  // ventanas azul profundo
-      const GLfloat c_chim[]   = {0.2f, 0.2f, 0.2f, 1.0f};     // chimenea gris oscuro
-
-      // Base de la casa
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_wall);
-      glPushMatrix();
-      glScalef(1.6f, 1.0f, 1.2f);
-      glutSolidCube(1.0);
-      glPopMatrix();
-
-      // Techo
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_roof);
-      glPushMatrix();
-      glTranslatef(0.0f, 0.75f, 0.0f);
-      glRotatef(-90.0f, 1, 0, 0);
-      glutSolidCone(0.95f, 0.9f, 24, 16);
-      glPopMatrix();
-
-      // Chimenea
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_chim);
-      glPushMatrix();
-      glTranslatef(-0.35f, 1.0f, 0.1f);
-      glScalef(0.25f, 0.45f, 0.25f);
-      glutSolidCube(1.0);
-      glPopMatrix();
-
-      // Puerta
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_door);
-      glPushMatrix();
-      glTranslatef(0.0f, -0.2f, 0.62f);
-      glScalef(0.35f, 0.45f, 0.08f);
-      glutSolidCube(1.0);
-      glPopMatrix();
-
-      // Ventanas
-      glMaterialfv(GL_FRONT, GL_EMISSION, c_window);
-      glPushMatrix();
-      glTranslatef(-0.45f, 0.15f, 0.62f);
-      glScalef(0.3f, 0.25f, 0.06f);
-      glutSolidCube(1.0);
-      glPopMatrix();
-      glPushMatrix();
-      glTranslatef( 0.45f, 0.15f, 0.62f);
-      glScalef(0.3f, 0.25f, 0.06f);
-      glutSolidCube(1.0);
-      glPopMatrix();
-
-      glPopMatrix();
-   }*/
 }
 
 void igvEscena3D::pick(int x, int y) {
@@ -903,7 +993,7 @@ void igvEscena3D::animarRobot() {
    float &t = animTime;
 
    // --- AJUSTE DE VELOCIDAD ---
-   const float velocidad = 0.05f;
+   const float velocidad = 0.15f;
 
    // Avanzar el tiempo
    t += velocidad;

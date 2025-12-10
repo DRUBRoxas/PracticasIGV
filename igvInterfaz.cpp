@@ -70,6 +70,8 @@ void igvInterfaz::configura_entorno(int argc, char** argv
    glutInitWindowPosition(_pos_X, _pos_Y);
    glutCreateWindow(_titulo.c_str());
 
+   escena.inicializarSuelo();
+
    create_menu();
 
    glEnable(GL_DEPTH_TEST); // activa el ocultamiento de superficies por z-buffer
@@ -88,7 +90,32 @@ void igvInterfaz::configura_entorno(int argc, char** argv
  */
 void igvInterfaz::create_menu()
 {
-   int menu_id = glutCreateMenu(menuHandle);
+   // 1. Submenú Materiales
+   int menuMateriales = glutCreateMenu(menuHandle);
+   glutAddMenuEntry("Material 1 (Gris Mate)", 100);
+   glutAddMenuEntry("Material 2 (Dorado)", 101);
+   glutAddMenuEntry("Material 3 (Azul Plastico)", 102);
+
+   // 2. Submenú Texturas
+   int menuTexturas = glutCreateMenu(menuHandle);
+   glutAddMenuEntry("Sin Textura", 200); // Desactivar
+   glutAddMenuEntry("Textura 1 (Ajedrez)", 201);
+   glutAddMenuEntry("Textura 2 (Baldosa)", 202);
+   glutAddMenuEntry("Textura 3 (Cesped)", 203);
+
+   // 3. Submenú Filtros
+   int menuFiltros = glutCreateMenu(menuHandle);
+   glutAddMenuEntry("MAG: Nearest / MIN: Nearest", 300);
+   glutAddMenuEntry("MAG: Nearest / MIN: Linear", 301);
+   glutAddMenuEntry("MAG: Linear / MIN: Nearest", 302);
+   glutAddMenuEntry("MAG: Linear / MIN: Linear", 303);
+
+   // 4. Menú Principal
+   int menuPrincipal = glutCreateMenu(menuHandle);
+   glutAddSubMenu("Material Suelo", menuMateriales);
+   glutAddSubMenu("Textura Suelo", menuTexturas);
+   glutAddSubMenu("Filtros Textura", menuFiltros);
+   glutAddMenuEntry("-----------------", -1);
    glutAddMenuEntry("Animar Robot (On/Off)", 998);
    glutAddMenuEntry("Animar Camara (On/Off)", 999);
 
@@ -337,22 +364,45 @@ void igvInterfaz::displayFunc()
  */
 void igvInterfaz::menuHandle(int value)
 {
-   if (value == 998) {
-      _instancia->animacionRobot = !_instancia->animacionRobot;
-      if (_instancia->animacionRobot) _instancia->escena.startAnimacion();
-      else _instancia->escena.stopAnimacion();
-   }
-   if (value == 999) { // activar/desactivar animación cámara
-      _instancia->animacionCamara = !_instancia->animacionCamara;
-   }
-   glutPostRedisplay(); // renew the content of the window
+   // Gestionar Materiales
+    if (value >= 100 && value <= 102) {
+       _instancia->escena.setMaterialSuelo(value - 100);
+    }
+   // Gestionar Texturas
+    else if (value == 200) {
+       _instancia->escena.toggleTexturaSuelo(false);
+    }
+    else if (value >= 201 && value <= 203) {
+       _instancia->escena.toggleTexturaSuelo(true);
+       _instancia->escena.setTexturaSuelo(value - 201); // 0, 1, 2
+    }
+   // Gestionar Filtros
+    else if (value >= 300 && value <= 303) {
+       switch (value) {
+          case 300: _instancia->escena.setFiltroTextura(igvEscena3D::FILTRO_NN); break;
+          case 301: _instancia->escena.setFiltroTextura(igvEscena3D::FILTRO_NL); break;
+          case 302: _instancia->escena.setFiltroTextura(igvEscena3D::FILTRO_LN); break;
+          case 303: _instancia->escena.setFiltroTextura(igvEscena3D::FILTRO_LL); break;
+       }
+    }
+   // Opciones anteriores
+    else if (value == 998) {
+       _instancia->animacionRobot = !_instancia->animacionRobot;
+       if (_instancia->animacionRobot) _instancia->escena.startAnimacion();
+       else _instancia->escena.stopAnimacion();
+    }
+    else if (value == 999) {
+       _instancia->animacionCamara = !_instancia->animacionCamara;
+    }
+
+   glutPostRedisplay();
 }
 
 void igvInterfaz::idleFunc()
 {
    bool huboCambios = false;
    if (_instancia->animacionCamara) {
-      _instancia->camara.orbitY(0.08);
+      _instancia->camara.orbitY(0.18);
       huboCambios = true;
 
    }

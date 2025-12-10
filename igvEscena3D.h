@@ -2,6 +2,8 @@
 #define __IGVESCENA3D
 #include <vector>
 #include "igvMallaTriangulos.h"
+#include "igvMaterial.h"
+#include "igvTextura.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <GLUT/glut.h>
@@ -44,6 +46,13 @@ public:
 
 
     int parteActiva = 0; // 0: Cuerpo Completo, 1:cabeza, 2:bIzq, 3:bDer, 4:pIzq, 5:pDer
+
+    enum FiltroTextura{
+        FILTRO_NN,
+        FILTRO_NL,
+        FILTRO_LN,
+        FILTRO_LL
+    };
 
 private:
     // Atributos
@@ -91,6 +100,18 @@ private:
 
     //Puntero a malla de triangulos
     igvMallaTriangulos *objetoGodzilla = nullptr;
+
+    // Atributos para el suelo
+    igvTextura* texturaSuelo[2]; // Dos texturas para el suelo
+    unsigned int idTexturaAjedrez; // ID de la textura de ajedrez
+
+    igvMaterial materialSuelo[3]; // Materiales para el suelo
+
+
+    int indiceTexturaActual = 0; // Indice de la textura del suelo
+    int indiceMaterialActual = 0; // Indice del material actual del suelo
+    bool usarTextura = true; // Indica si se usa textura o no en el suelo activar/desactivar
+    FiltroTextura filtroActual = FILTRO_LL; // Filtro de la textura del suelo
 
 public:
     // Constructores por defecto y destructor
@@ -140,6 +161,13 @@ public:
     void setSeleccionando(bool sel) {
         seleccionando = sel;
     }
+
+    void setMaterialSuelo(int indice) { if(indice >= 0 && indice < 3) indiceMaterialActual = indice; }
+    void setTexturaSuelo(int indice) { if(indice >= 0 && indice < 3) indiceTexturaActual = indice; }
+    void toggleTexturaSuelo(bool activar) { usarTextura = activar; }
+    void setFiltroTextura(FiltroTextura filtro) { filtroActual = filtro; }
+    void inicializarSuelo();
+
 private:
     void renderEscenaA();
     void renderEscenaB();
@@ -170,7 +198,12 @@ private:
                  int type, float normalDir,
                  int numLados,
                  std::vector<float>& v, std::vector<float>& n, std::vector<unsigned int>& i, int& idxOffset);
-
+    /** Método para pintar el suelo con la textura seleccionada
+     */
+    void pintarSuelo();
+    /** Método para inicializar las texturas del suelo
+     */
+    void generarTexturaAjedrez(); // Auxiliar para crear el ajedrez
 };
 
 #endif   // __IGVESCENA3D
