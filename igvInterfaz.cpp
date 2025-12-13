@@ -110,11 +110,20 @@ void igvInterfaz::create_menu()
    glutAddMenuEntry("MAG: Linear / MIN: Nearest", 302);
    glutAddMenuEntry("MAG: Linear / MIN: Linear", 303);
 
-   // 4. Menú Principal
+   // 4. Submenú Luces
+   int menuLuces = glutCreateMenu(menuHandle);
+   glutAddMenuEntry("Seleccionar Luz Direccional", 400);
+   glutAddMenuEntry("Seleccionar Luz Puntual", 401);
+   glutAddMenuEntry("Seleccionar Luz Cono", 402);
+   glutAddMenuEntry("Encender/Apagar Luz Seleccionada", 410);
+   glutAddMenuEntry("Modo mover Luz (On/Off)", 411);
+
+   // 5. Menú Principal
    int menuPrincipal = glutCreateMenu(menuHandle);
    glutAddSubMenu("Material Suelo", menuMateriales);
    glutAddSubMenu("Textura Suelo", menuTexturas);
    glutAddSubMenu("Filtros Textura", menuFiltros);
+   glutAddSubMenu("Luces", menuLuces);
    glutAddMenuEntry("-----------------", -1);
    glutAddMenuEntry("Animar Robot (On/Off)", 998);
    glutAddMenuEntry("Animar Camara (On/Off)", 999);
@@ -151,6 +160,7 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
    const double dYaw = 5.0;   // grados yaw
    const double dNear = 0.1;  // incremento near
    const double dFar = 1.0;   // incremento far
+   const float dL = 0.1f;      // delta movimiento luces
 
    switch (key)
    {
@@ -236,6 +246,22 @@ void igvInterfaz::keyboardFunc(unsigned char key, int x, int y)
 
    case 'w': case 'W': _instancia->escena.toggleMalla(); break; // vermalla alámbrica (Para ver como se hace el moñeco con las mallas triangulares)
    case 'j': case 'J': _instancia->escena.cambiarSombreado(); break; // cambiar entre sombreado plano y suave
+
+   // Luces: seleccionar, alternar y modo mover
+   case 'l': case 'L': {
+      igvEscena3D::LuzSeleccionada current = _instancia->escena.getSelectedLight();
+      igvEscena3D::LuzSeleccionada next = igvEscena3D::LUZ_DIRECCIONAL;
+      switch (current) {
+         case igvEscena3D::LUZ_DIRECCIONAL: next = igvEscena3D::LUZ_PUNTUAL; break;
+         case igvEscena3D::LUZ_PUNTUAL: next = igvEscena3D::LUZ_CONO; break;
+         case igvEscena3D::LUZ_CONO: next = igvEscena3D::LUZNINGUNA; break;
+         default: next = igvEscena3D::LUZ_DIRECCIONAL; break;
+      }
+      _instancia->escena.selectLight(next);
+   } break;
+   case 't': case 'T': _instancia->escena.toggleLight(_instancia->escena.getSelectedLight()); break;
+   case 'k': case 'K': _instancia->escena.enterMoveLightMode(!_instancia->escena.isModoMoverLuz()); break;
+
    case 27: exit(1); break;
    }
    glutPostRedisplay();
@@ -248,6 +274,7 @@ void igvInterfaz::specialFunc(int key, int x, int y)
    const float factor = 5.0f;
    const double dOrbit = 5.0; // grados
    const double dPitch = 5.0; // grados
+   const float dL = 0.1f; // delta movimiento luces
    if (_instancia->camara.isControlActivo()) {
       switch (key) {
       case GLUT_KEY_LEFT: _instancia->camara.orbitY(-dOrbit); break;
@@ -256,8 +283,19 @@ void igvInterfaz::specialFunc(int key, int x, int y)
       case GLUT_KEY_DOWN: _instancia->camara.pitch(-dPitch); break;
       }
    } else {
+      // 0. Modo mover luces: usar cursores + PageUp/PageDown
+      if (_instancia->escena.isModoMoverLuz()) {
+         switch (key) {
+            case GLUT_KEY_LEFT: _instancia->escena.moveSelectedLight(-dL, 0.0f, 0.0f); break;
+            case GLUT_KEY_RIGHT: _instancia->escena.moveSelectedLight(+dL, 0.0f, 0.0f); break;
+            case GLUT_KEY_UP: _instancia->escena.moveSelectedLight(0.0f, 0.0f, +dL); break;
+            case GLUT_KEY_DOWN: _instancia->escena.moveSelectedLight(0.0f, 0.0f, -dL); break;
+            case GLUT_KEY_PAGE_UP: _instancia->escena.moveSelectedLight(0.0f, +dL, 0.0f); break;
+            case GLUT_KEY_PAGE_DOWN: _instancia->escena.moveSelectedLight(0.0f, -dL, 0.0f); break;
+         }
+      }
       // 1. Articulaciones del robot (IDs 1 a 9)
-      if (_instancia->escena.parteActiva > 0 && _instancia->escena.parteActiva <= 9) {
+      else if (_instancia->escena.parteActiva > 0 && _instancia->escena.parteActiva <= 9) {
          switch (key)
          {
             case GLUT_KEY_LEFT: _instancia->escena.moverArticulacion(-factor, 0.0f); break;
@@ -384,6 +422,20 @@ void igvInterfaz::menuHandle(int value)
           case 302: _instancia->escena.setFiltroTextura(igvEscena3D::FILTRO_LN); break;
           case 303: _instancia->escena.setFiltroTextura(igvEscena3D::FILTRO_LL); break;
        }
+    }
+   // Gestionar Luces
+    else if (value >= 400 && value <= 402) {
+       switch (value) {
+          case 400: _instancia->escena.selectLight(igvEscena3D::LUZ_DIRECCIONAL); break;
+          case 401: _instancia->escena.selectLight(igvEscena3D::LUZ_PUNTUAL); break;
+          case 402: _instancia->escena.selectLight(igvEscena3D::LUZ_CONO); break;
+       }
+    }
+    else if (value == 410) {
+       _instancia->escena.toggleLight(_instancia->escena.getSelectedLight());
+    }
+    else if (value == 411) {
+       _instancia->escena.enterMoveLightMode(!_instancia->escena.isModoMoverLuz());
     }
    // Opciones anteriores
     else if (value == 998) {

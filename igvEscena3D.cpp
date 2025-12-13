@@ -40,6 +40,51 @@ igvEscena3D::igvEscena3D() {
    // Material 2: Azul Plástico
    materialSuelo[2].set(igvColor(0.0, 0.1, 0.3), igvColor(0.0, 0.3, 0.8), igvColor(0.5, 0.5, 0.5), 20.0);
 
+   // Inicializar luz puntual con los parámetros especificados
+   luzPuntual = igvFuenteLuz(
+      GL_LIGHT0,                           // a) Identificador
+      igvPunto3D(1.0, 1.0, 1.0),          // b) Posición
+      igvColor(0.0, 0.0, 0.0, 1.0),       // c) Color ambiental
+      igvColor(1.0, 1.0, 1.0, 1.0),       // d) Color difuso
+      igvColor(1.0, 1.0, 1.0, 1.0),       // e) Color especular
+      1.0, 0.0, 0.0                       // f) Coeficientes de atenuación radial (a0, a1, a2)
+   );
+
+   // Luz ambiental (usada para GL_LIGHT_MODEL_AMBIENT)
+   luzAmbiental = igvFuenteLuz(
+      GL_LIGHT1,
+      igvPunto3D(0.0,0.0,0.0),
+      igvColor(0.15, 0.15, 0.15, 1.0),
+      igvColor(0.0,0.0,0.0,1.0),
+      igvColor(0.0,0.0,0.0,1.0),
+      1.0,0.0,0.0
+   );
+   // No usar posicion para ambiente: we'll use its ambient color via glLightModel in visualizar
+
+   // Luz direccional (simula sol suave desde un ángulo)
+   luzDireccional = igvFuenteLuz(
+      GL_LIGHT2,
+      igvPunto3D(-1.0, -1.0, -0.5), // direction vector (w=0 later)
+      igvColor(0.0, 0.0, 0.0, 1.0),
+      igvColor(0.8, 0.8, 0.7, 1.0),
+      igvColor(0.6, 0.6, 0.6, 1.0),
+      1.0, 0.0, 0.0
+   );
+   luzDireccional.setDirectional(true); // treat as directional (w = 0)
+
+   // Cono / foco: colócalo justo encima del origen mirando al suelo para verlo claro
+   luzCono = igvFuenteLuz(
+      GL_LIGHT3,
+      igvPunto3D(0.0f, 6.0f, 0.0f), // posición elevada sobre el centro
+      igvColor(0.0, 0.0, 0.0, 1.0),
+      igvColor(1.0, 0.95, 0.9, 1.0),
+      igvColor(1.0, 1.0, 1.0, 1.0),
+      1.0, 0.0, 0.0,
+      igvPunto3D(0.0f, -1.0f, 0.0f), // dirección apuntando hacia abajo
+      30.0, // cutoff angle algo más abierto
+      10.0  // exponent más suave
+   );
+
    // Guardar la pose inicial del robot (baseline) la primera vez que se construye la escena.
    // Esto asegura que la animación siempre sea relativa a la posición inicial al arrancar el programa.
    robotStateInitial = robotState;
@@ -99,25 +144,47 @@ void igvEscena3D::pintarSuelo() {
       glDisable(GL_TEXTURE_2D);
    }
 
-   // 4. Dibujar Quad (Suelo)
-   // Dibujamos un suelo grande de 20x20
-   float tam = 10.0f;
-   float repeticiones = 5.0f; // Para que la textura se repita
+   // 4. Dibujar Quad (Suelo) subdividido para mejorar la iluminacion
+   const float halfSize = 20.0f; // Mantiene el tamano original (40x40)
+   const int subdivX = 50;
+   const int subdivZ = 50;
+   const float repeticiones = 5.0f; // Para que la textura se repita
 
-   // Ajustar normal hacia arriba
    glNormal3f(0.0f, 1.0f, 0.0f);
+   pintar_quad(subdivX, subdivZ, halfSize, repeticiones);
+
+   glDisable(GL_TEXTURE_2D); // Limpieza
+}
+
+void igvEscena3D::pintar_quad(int div_x, int div_z, float halfSize, float texRepeat) {
+   if (div_x < 1 || div_z < 1) return;
+
+   const float stepX = (2.0f * halfSize) / static_cast<float>(div_x);
+   const float stepZ = (2.0f * halfSize) / static_cast<float>(div_z);
+   const float stepS = texRepeat / static_cast<float>(div_x);
+   const float stepT = texRepeat / static_cast<float>(div_z);
 
    glBegin(GL_QUADS);
       glNormal3f(0,1,0);
+      for (int ix = 0; ix < div_x; ++ix) {
+         const float x0 = -halfSize + stepX * ix;
+         const float x1 = x0 + stepX;
+         const float s0 = stepS * ix;
+         const float s1 = s0 + stepS;
 
-      glTexCoord2f(0,0); glVertex3f(-20, 0, -20);
-      glTexCoord2f(1,0); glVertex3f( 20, 0, -20);
-      glTexCoord2f(1,1); glVertex3f( 20, 0,  20);
-      glTexCoord2f(0,1); glVertex3f(-20, 0,  20);
+         for (int iz = 0; iz < div_z; ++iz) {
+            const float z0 = -halfSize + stepZ * iz;
+            const float z1 = z0 + stepZ;
+            const float t0 = stepT * iz;
+            const float t1 = t0 + stepT;
 
+            glTexCoord2f(s0, t0); glVertex3f(x0, 0.0f, z0);
+            glTexCoord2f(s1, t0); glVertex3f(x1, 0.0f, z0);
+            glTexCoord2f(s1, t1); glVertex3f(x1, 0.0f, z1);
+            glTexCoord2f(s0, t1); glVertex3f(x0, 0.0f, z1);
+         }
+      }
    glEnd();
-
-   glDisable(GL_TEXTURE_2D); // Limpieza
 }
 
 void igvEscena3D::inicializarSuelo() {
@@ -467,10 +534,17 @@ void igvEscena3D::pintar_ejes ()
  */
 void igvEscena3D::visualizar ( int escena )
 {
-   //Luces
-   GLfloat light0[] = { 10, 8, 9, 1 }; // point light source
-   glLightfv ( GL_LIGHT0, GL_POSITION, light0 );
-   glEnable ( GL_LIGHT0 );
+   // Habilitar iluminación y configurar componente ambiental global
+   glEnable(GL_LIGHTING);
+   // Usamos la componente ambiental definida en luzAmbiental como ambient global
+   igvColor &amb = luzAmbiental.getAmbiental();
+   GLfloat globalAmb[] = { (GLfloat)amb[0], (GLfloat)amb[1], (GLfloat)amb[2], 1.0f };
+   glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmb);
+
+   // Aplicar luces (la propia clase decide si están activas)
+   luzPuntual.aplicar();
+   luzDireccional.aplicar();
+   luzCono.aplicar();
 
    glPushMatrix (); // guarda la matriz de modelado
    if (verMalla) {
@@ -1022,3 +1096,47 @@ void igvEscena3D::animarRobot() {
    // CABEZA: relativo a la pose inicial
    robotState.cabeza = robotStateInitial.cabeza + 5.0f * sin(t * 0.5f);
 }
+
+// -------------------------
+// Métodos públicos para control de luces (menu/teclado)
+// -------------------------
+void igvEscena3D::toggleLight(LuzSeleccionada l) {
+    switch (l) {
+        case LUZ_DIRECCIONAL:
+            if (luzDireccional.esta_encendida()) luzDireccional.apagar(); else luzDireccional.encender();
+            break;
+        case LUZ_PUNTUAL:
+            if (luzPuntual.esta_encendida()) luzPuntual.apagar(); else luzPuntual.encender();
+            break;
+        case LUZ_CONO:
+            if (luzCono.esta_encendida()) luzCono.apagar(); else luzCono.encender();
+            break;
+        default: break;
+    }
+}
+
+void igvEscena3D::selectLight(LuzSeleccionada l) {
+    luzSeleccionada = l;
+}
+
+void igvEscena3D::enterMoveLightMode(bool enter) {
+    modoMoverLuz = enter;
+}
+
+void igvEscena3D::moveSelectedLight(float dx, float dy, float dz) {
+    if (!modoMoverLuz) return;
+    switch (luzSeleccionada) {
+        case LUZ_PUNTUAL:
+            luzPuntual.mover(dx, dy, dz);
+            break;
+        case LUZ_CONO:
+            luzCono.mover(dx, dy, dz);
+            break;
+        case LUZ_DIRECCIONAL:
+            // Para direccional, mover la dirección vector (posicion usado como dir)
+            luzDireccional.mover(dx, dy, dz);
+            break;
+        default: break;
+    }
+}
+

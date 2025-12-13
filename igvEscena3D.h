@@ -4,6 +4,7 @@
 #include "igvMallaTriangulos.h"
 #include "igvMaterial.h"
 #include "igvTextura.h"
+#include "igvFuenteLuz.h"
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <GLUT/glut.h>
@@ -14,11 +15,21 @@
 #endif   // defined(__APPLE__) && defined(__MACH__)
 
 /**
- * Los objetos de esta clase representan escenas 3D para su visualización
+ * Los objetos de esta clase representan escenas 3D para su visualizaci?n
  */
 class igvEscena3D
 {
 public:
+    // Control de selección/movimiento de luces desde menú
+    enum LuzSeleccionada {
+        LUZNINGUNA = 0,
+        LUZ_DIRECCIONAL = 1,
+        LUZ_PUNTUAL = 2,
+        LUZ_CONO = 3
+    };
+    LuzSeleccionada luzSeleccionada = LUZNINGUNA;
+    bool modoMoverLuz = false; // si true, las llamadas a moveSelectedLight mueven la luz seleccionada
+
     const int EscenaA = 1; ///< Identificador interno de la escena A
     const int EscenaB = 2; ///< Identificador interno de la escena B
     const int EscenaC = 3; ///< Identificador interno de la escena C
@@ -56,16 +67,16 @@ public:
 
 private:
     // Atributos
-    bool seleccionando = false; ///< Indica si se está en modo selección de objeto
+    bool seleccionando = false; ///< Indica si se est? en modo selecci?n de objeto
     bool ejes = true; ///< Indica si hay que dibujar los ejes coordenados o no
     bool verMalla = false;
-    int lastMouseX = 0; ///< Última posición X del ratón
-    int lastMouseY = 0; ///< Última posición Y del ratón
+    int lastMouseX = 0; ///< ?ltima posici?n X del rat?n
+    int lastMouseY = 0; ///< ?ltima posici?n Y del rat?n
     struct Transform
     {
         float tx, ty, tz;
         float rx, ry, rz; // Grados
-        float s; // Escala homogénea
+        float s; // Escala homog?nea
     };
     Transform objT[3]{}; // 0:cubo, 1:esfera, 2:cono
 
@@ -83,10 +94,10 @@ private:
         float pantorrillaDer = 0.0f;
     } robotState;
 
-    // Pose inicial guardada al arrancar la animación (baseline)
+    // Pose inicial guardada al arrancar la animaci?n (baseline)
     Robot robotStateInitial;
     bool animacionActiva = false;
-    float animTime = 0.0f; // tiempo de animación en segundos
+    float animTime = 0.0f; // tiempo de animaci?n en segundos
 
     struct Op {
         enum Kind { T, RX, RY, RZ, S } kind;
@@ -107,6 +118,12 @@ private:
 
     igvMaterial materialSuelo[3]; // Materiales para el suelo
 
+    igvFuenteLuz luzPuntual; // Luz puntual de la escena
+
+    // Nuevas luces: ambiente global, direccional y foco (cono)
+    igvFuenteLuz luzAmbiental;
+    igvFuenteLuz luzDireccional;
+    igvFuenteLuz luzCono;
 
     int indiceTexturaActual = 0; // Indice de la textura del suelo
     int indiceMaterialActual = 0; // Indice del material actual del suelo
@@ -120,8 +137,8 @@ public:
     /// Destructor
     ~igvEscena3D();
 
-    // Métodos
-    // método con las llamadas OpenGL para visualizar la escena
+    // M?todos
+    // m?todo con las llamadas OpenGL para visualizar la escena
     void visualizar(int escena);
 
     bool get_ejes();
@@ -142,17 +159,17 @@ public:
 
     // Metodo para saber que has clicado
     void pick(int x, int y);
-    // Metodo para darle una animación automática al robot
+    // Metodo para darle una animaci?n autom?tica al robot
     void animarRobot();
 
-    // Control de ciclo de animación: inicio / parada (restauran pose)
+    // Control de ciclo de animaci?n: inicio / parada (restauran pose)
     void startAnimacion();
     void stopAnimacion();
     bool isAnimando() const { return animacionActiva; }
 
     // Metodo para mover el objeto con el raton
     void arrastrar(int x, int y);
-    // Guardar la última posición del ratón
+    // Guardar la ?ltima posici?n del rat?n
     void setLastMouse(int x, int y) {
         lastMouseX = x;
         lastMouseY = y;
@@ -168,6 +185,14 @@ public:
     void setFiltroTextura(FiltroTextura filtro) { filtroActual = filtro; }
     void inicializarSuelo();
 
+    // Control de luces desde la interfaz/menu
+    void toggleLight(LuzSeleccionada l); // activa/desactiva la luz indicada
+    void selectLight(LuzSeleccionada l); // seleccionar luz para activar/desactivar o mover
+    void enterMoveLightMode(bool enter); // alternar estado de movimiento de la luz seleccionada
+    void moveSelectedLight(float dx, float dy, float dz); // mover la luz seleccionada (puntual o cono)
+    LuzSeleccionada getSelectedLight() const { return luzSeleccionada; }
+    bool isModoMoverLuz() const { return modoMoverLuz; }
+
 private:
     void renderEscenaA();
     void renderEscenaB();
@@ -178,30 +203,32 @@ private:
     void generarMallaGodzilla();
     // Funciones auxiliares para crear la malla de Godzilla
     /** Genera un tubo vertical entre dos puntos con radios diferentes en cada extremo
-     *  y lo añade a la malla pasada como parámetro
+     *  y lo a?ade a la malla pasada como par?metro
      */
     void addTuboToMesh(float x1, float y1, float z1, float rBaseX, float rBaseZ,
                        float x2, float y2, float z2, float rTopX, float rTopZ,
                        int numLados,
                        std::vector<float>& v, std::vector<float>& n, std::vector<unsigned int>& i, int& idxOffset);
     /** Genera un tubo horizontal entre dos puntos con radios diferentes en cada extremo
-     *  y lo añade a la malla pasada como parámetro
+     *  y lo a?ade a la malla pasada como par?metro
      */
     void addTuboHorizontal(float x1, float y1, float z1, float rBaseX, float rBaseY,
                            float x2, float y2, float z2, float rTopX, float rTopY,
                            int numLados,
                            std::vector<float>& v, std::vector<float>& n, std::vector<unsigned int>& i, int& idxOffset);
-    /** Genera una tapa (base o top) en la posición y orientación indicadas
-     *  y la añade a la malla pasada como parámetro
+    /** Genera una tapa (base o top) en la posici?n y orientaci?n indicadas
+     *  y la a?ade a la malla pasada como par?metro
      */
     void addTapa(float x, float y, float z, float rx, float ry,
                  int type, float normalDir,
                  int numLados,
                  std::vector<float>& v, std::vector<float>& n, std::vector<unsigned int>& i, int& idxOffset);
-    /** Método para pintar el suelo con la textura seleccionada
+    /** M?todo para pintar el suelo con la textura seleccionada
      */
     void pintarSuelo();
-    /** Método para inicializar las texturas del suelo
+    // Genera una malla regular de quads sobre el plano XZ
+    void pintar_quad(int div_x, int div_z, float halfSize, float texRepeat);
+    /** M?todo para inicializar las texturas del suelo
      */
     void generarTexturaAjedrez(); // Auxiliar para crear el ajedrez
 };

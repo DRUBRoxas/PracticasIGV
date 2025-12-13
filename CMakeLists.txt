@@ -24,7 +24,9 @@ add_executable(${PROJECT_NAME}
         igvTextura.cpp
         igvTextura.h
         lodepng.cpp
-        lodepng.h)
+        lodepng.h
+        igvFuenteLuz.cpp
+        igvFuenteLuz.h)
 
 if (LINUX)
     find_path(OPENGL_REGISTRY_INCLUDE_DIRS "GL/glcorearb.h")
